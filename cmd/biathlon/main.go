@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -17,7 +18,14 @@ func main() {
 	cfgPath := flag.String("config", "", "path to JSON config")
 	eventsPath := flag.String("events", "", "path to incoming events")
 	outlogPath := flag.String("out", "", "path to output log")
+	verbose := flag.Bool("v", false, "verbose output")
 	flag.Parse()
+
+	out := io.Discard
+	if *verbose {
+		out = os.Stdout
+	}
+	verboseLogger := log.New(out, "VERBOSE: ", log.LstdFlags)
 
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
@@ -53,20 +61,20 @@ func main() {
 	scanner := bufio.NewScanner(eventsFile)
 	for scanner.Scan() {
 		line := scanner.Text()
-		log.Printf("Parsed line: %s", line)
+		verboseLogger.Printf("Parsed line: %s", line)
 		event, err := eventParser.ParseEvent(line)
 		if err != nil {
 			log.Fatalf("Failed to parse event %s: %s", line, err.Error())
 			os.Exit(1)
 		}
-		log.Printf("Parsed event: %v", event)
+		verboseLogger.Printf("Parsed event: %v", event)
 
 		err = eventEngine.ProcessEvent(event)
 		if err != nil {
 			log.Fatalf("Failed to process event %v: %s", event, err.Error())
 			os.Exit(1)
 		}
-		log.Printf("Processed event: %v", event)
+		verboseLogger.Printf("Processed event: %v", event)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("Failed to reading events: %s", err.Error())
