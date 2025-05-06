@@ -51,7 +51,11 @@ func NewEngine(cfg config.Config, resultLogger *output.Logger) *Engine {
 func (e *Engine) ProcessEvent(event models.Event) error {
 	state, ok := e.states[event.CompetitorID]
 	if !ok {
-		state = &competitorState{CompetitorID: event.CompetitorID}
+		state = &competitorState{
+			CompetitorID:     event.CompetitorID,
+			LapEndTimes:      make([]time.Time, 0, e.cfg.Laps),
+			PenaltyIntervals: make([]penaltyInterval, 0, e.cfg.Laps*e.cfg.FiringLines),
+		}
 		e.states[event.CompetitorID] = state
 	}
 
@@ -177,8 +181,8 @@ func (e *Engine) GetReport() []ReportRow {
 		}
 
 		var totalPen time.Duration
-		for _, iv := range state.PenaltyIntervals {
-			totalPen += iv.End.Sub(iv.Start)
+		for _, interval := range state.PenaltyIntervals {
+			totalPen += interval.End.Sub(interval.Start)
 		}
 		row.PenaltyTime = totalPen
 		penCount := row.Shots - row.Hits
