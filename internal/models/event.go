@@ -29,31 +29,3 @@ type Event struct {
 	CompetitorID int
 	ExtraParams  []string
 }
-
-type CompetitorState struct {
-	CompetitorID   int
-	RegisteredTime time.Time
-	ScheduledStart time.Time
-	ActualStart    time.Time
-	NotStarted     bool
-	NotFinished    bool
-	NotFinishedMsg string
-	LapEndTimes    []time.Time
-	Shots          int
-	Hits           int
-	PenaltyStart   time.Time
-	PenaltyEnd     time.Time
-	FinishTime     time.Time
-}
-
-type ReportRow struct {
-	CompetitorID int
-	Status       string
-	LapTimes     []time.Duration
-	LapSpeeds    []float64
-	PenaltyTime  time.Duration
-	PenaltySpeed float64
-	Hits         int
-	Shots        int
-	StartTime    time.Time // aux info for sorting, not for report
-}

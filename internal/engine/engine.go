@@ -13,16 +13,32 @@ import (
 	"github.com/zahartd/biathlon_competitions_system/internal/output"
 )
 
+type CompetitorState struct {
+	CompetitorID   int
+	RegisteredTime time.Time
+	ScheduledStart time.Time
+	ActualStart    time.Time
+	NotStarted     bool
+	NotFinished    bool
+	NotFinishedMsg string
+	LapEndTimes    []time.Time
+	Shots          int
+	Hits           int
+	PenaltyStart   time.Time
+	PenaltyEnd     time.Time
+	FinishTime     time.Time
+}
+
 type Engine struct {
 	cfg    config.Config
-	states map[int]*models.CompetitorState
+	states map[int]*CompetitorState
 	logger *output.Logger
 }
 
 func NewEngine(cfg config.Config, logger *output.Logger) *Engine {
 	return &Engine{
 		cfg:    cfg,
-		states: make(map[int]*models.CompetitorState),
+		states: make(map[int]*CompetitorState),
 		logger: logger,
 	}
 }
@@ -30,7 +46,7 @@ func NewEngine(cfg config.Config, logger *output.Logger) *Engine {
 func (e *Engine) ProcessEvent(event models.Event) error {
 	state, ok := e.states[event.CompetitorID]
 	if !ok {
-		e.states[event.CompetitorID] = &models.CompetitorState{
+		e.states[event.CompetitorID] = &CompetitorState{
 			CompetitorID: event.CompetitorID,
 		}
 	}
@@ -99,10 +115,42 @@ func (e *Engine) Finilize() {
 	}
 }
 
-func (e *Engine) GetReport() []models.ReportRow {
-	var rows []models.ReportRow
+type ReportRow struct {
+	CompetitorID int
+	Status       string
+	LapTimes     []time.Duration
+	LapSpeeds    []float64
+	PenaltyTime  time.Duration
+	PenaltySpeed float64
+	Hits         int
+	Shots        int
+	StartTime    time.Time // aux info for sorting, not for report
+}
+
+func (r ReportRow) Format() string {
+	laps := ""
+	for i, d := range r.LapTimes {
+		laps += fmt.Sprintf("{%s, %.3f}", formatDuration(d), r.LapSpeeds[i])
+		if i < len(r.LapTimes)-1 {
+			laps += ", "
+		}
+	}
+	pen := fmt.Sprintf("{%s, %.3f}", formatDuration(r.PenaltyTime), r.PenaltySpeed)
+	return fmt.Sprintf("[%s] %d [%s] %s %d/%d\n",
+		r.Status, r.CompetitorID, laps, pen, r.Hits, r.Shots)
+}
+
+func formatDuration(d time.Duration) string {
+	ms := d.Milliseconds() % 1000
+	s := int(d.Seconds()) % 60
+	m := int(d.Minutes())
+	return fmt.Sprintf("%02d:%02d.%03d", m, s, ms)
+}
+
+func (e *Engine) GetReport() []ReportRow {
+	var rows []ReportRow
 	for _, st := range e.states {
-		row := models.ReportRow{
+		row := ReportRow{
 			CompetitorID: st.CompetitorID,
 			Hits:         st.Hits,
 			Shots:        st.Shots,
