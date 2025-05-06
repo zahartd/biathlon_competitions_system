@@ -123,9 +123,9 @@ func (e *Engine) GetReport() []ReportRow {
 
 		prev := state.ScheduledStart
 		for _, end := range state.LapEndTimes {
-			dur := end.Sub(prev)
-			row.LapTimes = append(row.LapTimes, dur)
-			row.LapSpeeds = append(row.LapSpeeds, float64(e.cfg.LapLen)/dur.Seconds())
+			lapTime := end.Sub(prev)
+			row.LapTimes = append(row.LapTimes, lapTime)
+			row.LapSpeeds = append(row.LapSpeeds, float64(e.cfg.LapLen)/lapTime.Seconds()) // metr / sec
 			prev = end
 		}
 
