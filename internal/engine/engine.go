@@ -168,10 +168,7 @@ func (e *Engine) GetReport() []ReportRow {
 			row.Status = "Finished"
 		}
 
-		prev := state.ActualStart
-		if prev.IsZero() {
-			prev = state.ScheduledStart
-		}
+		prev := state.ScheduledStart
 		for _, end := range state.LapEndTimes {
 			dur := end.Sub(prev)
 			row.LapTimes = append(row.LapTimes, dur)
