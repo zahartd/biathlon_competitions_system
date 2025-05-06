@@ -1,4 +1,7 @@
-# Build, run and tests
+# System prototype for biathlon competitions
+The prototype must be able to work with a configuration file and a set of external events of a certain format.
+
+## Build, run and tests
 
 ```bash
 # build
@@ -35,10 +38,6 @@ make e2e
 # Run both unit and e2e tests
 make tests
 ```
-
-# System prototype for biathlon competitions
-The prototype must be able to work with a configuration file and a set of external events of a certain format.
-Solution should contain golang (1.20 or newer) source file/files and unit tests (optional)
 
 ## Configuration (json)
 
