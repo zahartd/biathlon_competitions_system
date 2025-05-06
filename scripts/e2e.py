@@ -10,7 +10,7 @@ def test_case(tmp_path, case):
     outlog = tmp_path / "out.log"
 
     result = subprocess.run(
-        ["../../biathlon", "-config", cfg, "-events", events, "-out", str(outlog)],
+        ["../bin/biathlon", "-config", cfg, "-events", events, "-out", str(outlog)],
         stdout=subprocess.PIPE,
         stderr=sys.stderr,
         text=True,

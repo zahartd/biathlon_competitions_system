@@ -70,10 +70,8 @@ func (e *Engine) ProcessEvent(event models.Event) error {
 	case models.EventStart:
 		state.ActualStart = event.Time
 	case models.EventFiring:
-		{
-		}
+		state.Shots += 5
 	case models.EventHit:
-		state.Shots++
 		state.Hits++
 	case models.EventLeaveFiring:
 		{
