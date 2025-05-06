@@ -7,7 +7,7 @@ go build -o bin/biathlon ./cmd/biathlon
 # run
 ./bin/biathlon \
   -config data/1/config.json \
-  -events data/1/events \
+  -events data/1/events \При
   -out data/1/out.log
 
 # unittests
@@ -15,6 +15,22 @@ go test ./internal/...
 
 # e2e tests
 cd scripts && pytest
+```
+
+or using Makefile
+
+```bash
+# build
+make build
+
+# Run unittests
+make unit
+
+# Run e2e tests
+make e2e
+
+# Run both unit and e2e tests
+make tests
 ```
 
 # System prototype for biathlon competitions
