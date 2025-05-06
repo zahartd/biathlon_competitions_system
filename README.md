@@ -1,3 +1,22 @@
+# Build, run and tests
+
+```bash
+# build
+go build -o bin/biathlon ./cmd/biathlon
+
+# run
+./bin/biathlon \
+  -config data/1/config.json \
+  -events data/1/events \
+  -out data/1/out.log
+
+# unittests
+go test ./internal/...
+
+# e2e tests
+cd scripts && pytest
+```
+
 # System prototype for biathlon competitions
 The prototype must be able to work with a configuration file and a set of external events of a certain format.
 Solution should contain golang (1.20 or newer) source file/files and unit tests (optional)
