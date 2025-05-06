@@ -34,7 +34,11 @@ func main() {
 	}
 	defer eventsFile.Close()
 
-	outlogFile, err := os.Open(*outlogPath)
+	outlogFile, err := os.OpenFile(
+		*outlogPath,
+		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
+		0o644,
+	)
 	if err != nil {
 		log.Fatalf("Incorrect output log: %s", err.Error())
 		flag.Usage()
@@ -49,16 +53,20 @@ func main() {
 	scanner := bufio.NewScanner(eventsFile)
 	for scanner.Scan() {
 		line := scanner.Text()
+		log.Printf("Parsed line: %s", line)
 		event, err := eventParser.ParseEvent(line)
 		if err != nil {
 			log.Fatalf("Failed to parse event %s: %s", line, err.Error())
 			os.Exit(1)
 		}
+		log.Printf("Parsed event: %v", event)
+
 		err = eventEngine.ProcessEvent(event)
 		if err != nil {
 			log.Fatalf("Failed to process event %v: %s", event, err.Error())
 			os.Exit(1)
 		}
+		log.Printf("Processed event: %v", event)
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("Failed to reading events: %s", err.Error())

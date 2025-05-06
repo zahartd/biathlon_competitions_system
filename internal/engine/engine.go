@@ -31,14 +31,14 @@ type CompetitorState struct {
 
 type Engine struct {
 	cfg    config.Config
-	states map[int]*CompetitorState
+	states map[int]CompetitorState
 	logger *output.Logger
 }
 
 func NewEngine(cfg config.Config, logger *output.Logger) *Engine {
 	return &Engine{
 		cfg:    cfg,
-		states: make(map[int]*CompetitorState),
+		states: make(map[int]CompetitorState),
 		logger: logger,
 	}
 }
@@ -46,7 +46,7 @@ func NewEngine(cfg config.Config, logger *output.Logger) *Engine {
 func (e *Engine) ProcessEvent(event models.Event) error {
 	state, ok := e.states[event.CompetitorID]
 	if !ok {
-		e.states[event.CompetitorID] = &CompetitorState{
+		e.states[event.CompetitorID] = CompetitorState{
 			CompetitorID: event.CompetitorID,
 		}
 	}

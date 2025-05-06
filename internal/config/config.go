@@ -44,11 +44,13 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 	}
 	c.Start = startTime
 
-	startDelta, err := time.ParseDuration(raw.StartDelta)
-	if err != nil {
+	var h, m, s int
+	if _, err := fmt.Sscanf(raw.StartDelta, "%02d:%02d:%02d", &h, &m, &s); err != nil {
 		return fmt.Errorf("failed to parse startDelta %q: %w", raw.StartDelta, err)
 	}
-	c.StartDelta = startDelta
+	c.StartDelta = time.Duration(h)*time.Hour +
+		time.Duration(m)*time.Minute +
+		time.Duration(s)*time.Second
 
 	return nil
 }
