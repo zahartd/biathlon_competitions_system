@@ -13,45 +13,49 @@ import (
 	"github.com/zahartd/biathlon_competitions_system/internal/output"
 )
 
-type CompetitorState struct {
-	CompetitorID   int
-	RegisteredTime time.Time
-	ScheduledStart time.Time
-	ActualStart    time.Time
-	NotStarted     bool
-	NotFinished    bool
-	NotFinishedMsg string
-	LapEndTimes    []time.Time
-	Shots          int
-	Hits           int
-	PenaltyStart   time.Time
-	PenaltyEnd     time.Time
-	FinishTime     time.Time
+type penaltyInterval struct {
+	Start time.Time
+	End   time.Time
+}
+
+type competitorState struct {
+	CompetitorID     int
+	RegisteredTime   time.Time
+	ScheduledStart   time.Time
+	ActualStart      time.Time
+	NotStarted       bool
+	NotFinished      bool
+	NotFinishedMsg   string
+	LapEndTimes      []time.Time
+	PenaltyIntervals []penaltyInterval
+	Shots            int
+	Hits             int
+	lineHits         int
+	FinishTime       time.Time
 }
 
 type Engine struct {
-	cfg    config.Config
-	states map[int]CompetitorState
-	logger *output.Logger
+	cfg          config.Config
+	states       map[int]*competitorState
+	resultLogger *output.Logger
 }
 
-func NewEngine(cfg config.Config, logger *output.Logger) *Engine {
+func NewEngine(cfg config.Config, resultLogger *output.Logger) *Engine {
 	return &Engine{
-		cfg:    cfg,
-		states: make(map[int]CompetitorState),
-		logger: logger,
+		cfg:          cfg,
+		states:       make(map[int]*competitorState),
+		resultLogger: resultLogger,
 	}
 }
 
 func (e *Engine) ProcessEvent(event models.Event) error {
 	state, ok := e.states[event.CompetitorID]
 	if !ok {
-		e.states[event.CompetitorID] = CompetitorState{
-			CompetitorID: event.CompetitorID,
-		}
+		state = &competitorState{CompetitorID: event.CompetitorID}
+		e.states[event.CompetitorID] = state
 	}
 
-	e.logger.Write(event)
+	e.resultLogger.Write(event)
 
 	switch event.ID {
 	case models.EventRegister:
@@ -63,23 +67,25 @@ func (e *Engine) ProcessEvent(event models.Event) error {
 				event.CompetitorID, err)
 		}
 		state.ScheduledStart = scheduled
-
 	case models.EventOnLine:
-		{
-		}
+		// no op
 	case models.EventStart:
 		state.ActualStart = event.Time
 	case models.EventFiring:
-		state.Shots += 5
+		state.lineHits = 0
 	case models.EventHit:
-		state.Hits++
+		state.lineHits++
 	case models.EventLeaveFiring:
-		{
-		}
+		state.Shots += 5
+		state.Hits += state.lineHits
 	case models.EventPenaltyEnter:
-		state.PenaltyStart = event.Time
+		state.PenaltyIntervals = append(state.PenaltyIntervals, penaltyInterval{Start: event.Time})
 	case models.EventPenaltyLeave:
-		state.PenaltyEnd = event.Time
+		if len(state.PenaltyIntervals) > 0 {
+			state.PenaltyIntervals[len(state.PenaltyIntervals)-1].End = event.Time
+		} else {
+			return fmt.Errorf("invalid PenaltyLeave event without enter for competitor %d", event.CompetitorID)
+		}
 	case models.EventLapEnd:
 		state.LapEndTimes = append(state.LapEndTimes, event.Time)
 		if len(state.LapEndTimes) == e.cfg.Laps {
@@ -89,13 +95,13 @@ func (e *Engine) ProcessEvent(event models.Event) error {
 				CompetitorID: event.CompetitorID,
 			}
 			state.FinishTime = event.Time
-			e.logger.Write(finish)
+			e.resultLogger.Write(finish)
 		}
 	case models.EventNotContinue:
 		state.NotFinished = true
 		state.NotFinishedMsg = strings.Join(event.ExtraParams, " ")
 	default:
-		log.Printf("Uknown eventID = %d: %v", event.ID, event)
+		log.Printf("Unknown eventID=%d for competitor %d", event.ID, event.CompetitorID)
 	}
 	return nil
 }
@@ -108,34 +114,32 @@ func (e *Engine) Finilize() {
 				ID:           models.EventDisqualification,
 				CompetitorID: cid,
 			}
-			e.logger.Write(disqualification)
+			e.resultLogger.Write(disqualification)
 		}
 	}
 }
 
 type ReportRow struct {
-	CompetitorID int
-	Status       string
-	LapTimes     []time.Duration
-	LapSpeeds    []float64
-	PenaltyTime  time.Duration
-	PenaltySpeed float64
-	Hits         int
-	Shots        int
-	StartTime    time.Time // aux info for sorting, not for report
+	CompetitorID   int
+	Status         string
+	LapTimes       []time.Duration
+	LapSpeeds      []float64
+	PenaltyTime    time.Duration
+	PenaltySpeed   float64
+	Hits           int
+	Shots          int
+	ScheduledStart time.Time // aux info for sorting, not for report
 }
 
 func (r ReportRow) Format() string {
-	laps := ""
+	var lapStrs []string
 	for i, d := range r.LapTimes {
-		laps += fmt.Sprintf("{%s, %.3f}", formatDuration(d), r.LapSpeeds[i])
-		if i < len(r.LapTimes)-1 {
-			laps += ", "
-		}
+		lapStrs = append(lapStrs, fmt.Sprintf("{%s, %.3f}", formatDuration(d), r.LapSpeeds[i]))
 	}
-	pen := fmt.Sprintf("{%s, %.3f}", formatDuration(r.PenaltyTime), r.PenaltySpeed)
+	laps := strings.Join(lapStrs, ", ")
+	penStr := fmt.Sprintf("{%s, %.3f}", formatDuration(r.PenaltyTime), r.PenaltySpeed)
 	return fmt.Sprintf("[%s] %d [%s] %s %d/%d\n",
-		r.Status, r.CompetitorID, laps, pen, r.Hits, r.Shots)
+		r.Status, r.CompetitorID, laps, penStr, r.Hits, r.Shots)
 }
 
 func formatDuration(d time.Duration) string {
@@ -147,48 +151,49 @@ func formatDuration(d time.Duration) string {
 
 func (e *Engine) GetReport() []ReportRow {
 	var rows []ReportRow
-	for _, st := range e.states {
+	for _, state := range e.states {
 		row := ReportRow{
-			CompetitorID: st.CompetitorID,
-			Hits:         st.Hits,
-			Shots:        st.Shots,
-			StartTime:    st.ActualStart,
+			CompetitorID:   state.CompetitorID,
+			Hits:           state.Hits,
+			Shots:          state.Shots,
+			ScheduledStart: state.ScheduledStart,
 		}
 
 		switch {
-		case st.NotFinished:
+		case state.NotFinished:
 			row.Status = "NotFinished"
-		case st.ActualStart.IsZero():
+		case state.NotStarted:
 			row.Status = "NotStarted"
 		default:
 			row.Status = "Finished"
 		}
 
-		prev := st.ActualStart
+		prev := state.ActualStart
 		if prev.IsZero() {
-			prev = st.ScheduledStart
+			prev = state.ScheduledStart
 		}
-		for _, end := range st.LapEndTimes {
+		for _, end := range state.LapEndTimes {
 			dur := end.Sub(prev)
 			row.LapTimes = append(row.LapTimes, dur)
 			row.LapSpeeds = append(row.LapSpeeds, float64(e.cfg.LapLen)/dur.Seconds())
 			prev = end
 		}
 
-		if !st.PenaltyStart.IsZero() && !st.PenaltyEnd.IsZero() {
-			penDur := st.PenaltyEnd.Sub(st.PenaltyStart)
-			row.PenaltyTime = penDur
-			row.PenaltySpeed = float64(e.cfg.PenaltyLen*len(st.LapEndTimes)) / penDur.Seconds()
+		var totalPen time.Duration
+		for _, iv := range state.PenaltyIntervals {
+			totalPen += iv.End.Sub(iv.Start)
+		}
+		row.PenaltyTime = totalPen
+		penCount := row.Shots - row.Hits
+		if totalPen > 0 && penCount > 0 {
+			row.PenaltySpeed = float64(e.cfg.PenaltyLen*penCount) / totalPen.Seconds()
 		}
 
 		rows = append(rows, row)
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
-		ri, rj := rows[i], rows[j]
-		ti := ri.StartTime
-		tj := rj.StartTime
-		return ti.Before(tj)
+		return rows[i].ScheduledStart.Before(rows[j].ScheduledStart)
 	})
 	return rows
 }
