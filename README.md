@@ -26,6 +26,9 @@ make build
 # Run unittests
 make unit
 
+# Get unittests coverage
+make cov
+
 # Run e2e tests
 make e2e
 

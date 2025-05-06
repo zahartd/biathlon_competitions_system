@@ -13,27 +13,6 @@ import (
 	"github.com/zahartd/biathlon_competitions_system/internal/output"
 )
 
-type penaltyInterval struct {
-	Start time.Time
-	End   time.Time
-}
-
-type competitorState struct {
-	CompetitorID     int
-	RegisteredTime   time.Time
-	ScheduledStart   time.Time
-	ActualStart      time.Time
-	NotStarted       bool
-	NotFinished      bool
-	NotFinishedMsg   string
-	LapEndTimes      []time.Time
-	PenaltyIntervals []penaltyInterval
-	Shots            int
-	Hits             int
-	lineHits         int
-	FinishTime       time.Time
-}
-
 type Engine struct {
 	cfg          config.Config
 	states       map[int]*competitorState
@@ -110,7 +89,7 @@ func (e *Engine) ProcessEvent(event models.Event) error {
 	return nil
 }
 
-func (e *Engine) Finilize() {
+func (e *Engine) Finalize() {
 	for cid, st := range e.states {
 		if st.ActualStart.IsZero() && !st.NotFinished {
 			disqualification := models.Event{
@@ -121,36 +100,6 @@ func (e *Engine) Finilize() {
 			e.resultLogger.Write(disqualification)
 		}
 	}
-}
-
-type ReportRow struct {
-	CompetitorID   int
-	Status         string
-	LapTimes       []time.Duration
-	LapSpeeds      []float64
-	PenaltyTime    time.Duration
-	PenaltySpeed   float64
-	Hits           int
-	Shots          int
-	ScheduledStart time.Time // aux info for sorting, not for report
-}
-
-func (r ReportRow) Format() string {
-	var lapStrs []string
-	for i, d := range r.LapTimes {
-		lapStrs = append(lapStrs, fmt.Sprintf("{%s, %.3f}", formatDuration(d), r.LapSpeeds[i]))
-	}
-	laps := strings.Join(lapStrs, ", ")
-	penStr := fmt.Sprintf("{%s, %.3f}", formatDuration(r.PenaltyTime), r.PenaltySpeed)
-	return fmt.Sprintf("[%s] %d [%s] %s %d/%d\n",
-		r.Status, r.CompetitorID, laps, penStr, r.Hits, r.Shots)
-}
-
-func formatDuration(d time.Duration) string {
-	ms := d.Milliseconds() % 1000
-	s := int(d.Seconds()) % 60
-	m := int(d.Minutes())
-	return fmt.Sprintf("%02d:%02d.%03d", m, s, ms)
 }
 
 func (e *Engine) GetReport() []ReportRow {

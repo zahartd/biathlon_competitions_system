@@ -80,7 +80,7 @@ func main() {
 		log.Fatalf("Failed to reading events: %s", err.Error())
 	}
 
-	eventEngine.Finilize()
+	eventEngine.Finalize()
 	rows := eventEngine.GetReport()
 	for _, r := range rows {
 		fmt.Fprint(os.Stdout, r.Format())

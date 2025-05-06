@@ -23,19 +23,22 @@ const (
 func (p *Parser) ParseEvent(line string) (models.Event, error) {
 	tokens := strings.Fields(line)
 	if len(tokens) < 3 {
-		return models.Event{}, fmt.Errorf("invalid event line, expected [time] eventID competitorID extraParams")
+		return models.Event{},
+			fmt.Errorf("invalid event line, expected [time] eventID competitorID extraParams")
 	}
 
 	timestampToken := tokens[0]
 	if len(timestampToken) != timestampLen ||
 		timestampToken[0] != '[' ||
 		timestampToken[len(timestampToken)-1] != ']' {
-		return models.Event{}, fmt.Errorf("invalid timestamp, expected [%s], but received: %s", TimeLayoutHMSMilli, timestampToken)
+		return models.Event{},
+			fmt.Errorf("invalid timestamp, expected [%s], but received: %s", TimeLayoutHMSMilli, timestampToken)
 	}
 	timestampStr := timestampToken[1 : len(timestampToken)-1]
 	timestamp, err := time.Parse(TimeLayoutHMSMilli, timestampStr)
 	if err != nil {
-		return models.Event{}, fmt.Errorf("invalid timestamp, expected [%s], but received: %s", TimeLayoutHMSMilli, timestampToken)
+		return models.Event{},
+			fmt.Errorf("invalid timestamp, expected [%s], but received: %s", TimeLayoutHMSMilli, timestampToken)
 	}
 
 	eventID, err := strconv.Atoi(tokens[1])
